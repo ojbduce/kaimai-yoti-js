@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# Local SSL (not needed for Azure)
+local-dev/certificates/
+
+# OS files
+.DS_Store
+
+# Logs
+*.log

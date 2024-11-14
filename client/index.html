@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Yoti Verification</title>
+    <script src="https://www.yoti.com/share/client/v2"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Yoti QR code will render here -->
+    <div id="yoti-share-button"></div>
+
+    <script>
+        const loadYoti = async () => {
+            const { Yoti } = window;
+            if (Yoti) {
+                console.info('Waiting for Yoti...');
+                await Yoti.ready()
+                console.info('Yoti is now ready');
+            } else {
+                console.error('Yoti client was not found!');
+            }
+        }
+
+        const createYotiWebShare = async () => {
+            const { Yoti } = window;
+            if (Yoti) {
+                await Yoti.createWebShare({
+                    name: 'yoti-verification',
+                    domId: 'yoti-share-button',
+                    sdkId: '754182a1-fbf6-4a20-8615-cf4666f964cc', // Your SDK ID
+                    hooks: {
+                        sessionIdResolver: onSessionIdResolver,
+                        errorListener: onErrorListener
+                    }
+                })
+            }
+        }
+
+        async function onSessionIdResolver() {
+            // Call our backend endpoint we created earlier
+            const response = await fetch('/api/yoti/create-session', { 
+                method: 'POST'
+            });
+            const data = await response.json();
+            return data.sessionId;
+        }
+
+        function onErrorListener(error) {
+            console.warn('Yoti Error:', error);
+        }
+
+        const start = async () => {
+            await loadYoti();
+            await createYotiWebShare();
+        }
+
+        start().catch((e) => console.error('Could not create Yoti WebShare: ', e));
+    </script>
+</body>
+</html>
