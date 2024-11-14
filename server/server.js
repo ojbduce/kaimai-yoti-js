@@ -167,8 +167,3 @@ app.get('/callback', async (req, res) => {
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
-// Update the server creation to use HTTPS
-https.createServer(sslOptions, app)
-    .listen(port, () => {
-        console.log(`Secure server running on https://localhost:${port}`);
-    });
