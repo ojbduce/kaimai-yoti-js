@@ -35,12 +35,31 @@ app.use((req, res, next) => {
     next();
 });
 
-app.get('/health', (req, res) => {
-    res.status(200).send('OK');
+app.get('/health', async (req, res) => {
+    try {
+        const health = {
+            status: 'up',
+            uptime: process.uptime(),
+            timestamp: Date.now(),
+            port: port,
+            env: process.env.NODE_ENV,
+            yotiStatus: yotiClient ? 'initialized' : 'initializing'
+        };
+        
+        res.status(200).json(health);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server starting on port ${port} at ${new Date().toISOString()}`);
+});
+
+console.log(`Starting Yoti initialization at ${new Date().toISOString()}`);
 let yotiClient;
 try {
+    const startTime = Date.now();
     const yotiKeyPath = process.env.YOTI_KEY_FILE_PATH;
     console.log('Attempting to read Yoti key from:', yotiKeyPath);
     
@@ -55,6 +74,8 @@ try {
         fs.readFileSync(yotiKeyPath)
     );
     console.log('Yoti client initialized successfully');
+    const initTime = Date.now() - startTime;
+    console.log(`Yoti initialized successfully in ${initTime}ms`);
 } catch (error) {
     console.error('Failed to initialize Yoti client:', error);
     process.exit(1);
@@ -196,11 +217,6 @@ app.get('/debug-env', (req, res) => {
         NODE_ENV: process.env.NODE_ENV,
         PWD: process.cwd()
     });
-});
-
-app.listen(port, '0.0.0.0', () => {
-    console.log(`Server running on port ${port}`);
-    console.log(`Health check available at: http://0.0.0.0:${port}/health`);
 });
 
 process.on('uncaughtException', (error) => {
