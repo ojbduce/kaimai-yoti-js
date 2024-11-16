@@ -16,6 +16,6 @@
     "dev": "nodemon server/server.js"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.18.0"
   }
 }
