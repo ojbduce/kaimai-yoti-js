@@ -4,20 +4,76 @@
     <title>Yoti Verification</title>
     <script src="https://www.yoti.com/share/client/v2"></script>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .card {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 600px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .status-message {
+            color: #666;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
-    <!-- Yoti QR code will render here -->
-    <div id="yoti-share-button"></div>
+    <div class="card">
+        <h1>Welcome to Kaimai Verification</h1>
+        <p>Please complete your verification using the secure Yoti service below.</p>
+        
+        <div id="status-messages">
+            <div class="status-message" id="loading-message">
+                <span class="spinner"></span>
+                Initializing Yoti verification...
+            </div>
+            <div class="status-message loading" id="ready-message">
+                ✓ Yoti verification ready
+            </div>
+        </div>
+
+        <!-- Yoti QR code will render here -->
+        <div id="yoti-share-button"></div>
+    </div>
 
     <script>
         const loadYoti = async () => {
             const { Yoti } = window;
             if (Yoti) {
+                document.getElementById('loading-message').style.display = 'block';
                 console.info('Waiting for Yoti...');
-                await Yoti.ready()
+                await Yoti.ready();
+                document.getElementById('loading-message').style.display = 'none';
+                document.getElementById('ready-message').style.display = 'block';
                 console.info('Yoti is now ready');
             } else {
                 console.error('Yoti client was not found!');
+                document.getElementById('loading-message').textContent = '❌ Error: Yoti client not found';
             }
         }
 

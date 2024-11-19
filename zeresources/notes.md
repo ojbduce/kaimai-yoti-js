@@ -29,3 +29,11 @@ NEW KEYS? CHANGE IN INDEX, .ENV, AZURE ENV
     "cloudShellID": true,
     "name": "oliver.duce@kaimai.co.uk",
     "type": "user"
+
+
+    docker run -p 8080:8080 \
+  -e NODE_ENV=production \
+  -e PORT=8080 \
+  -e YOTI_CLIENT_SDK_ID=754182a1-fbf6-4a20-8615-cf4666f964cc \
+  -e APP_URL=http://localhost:8080 \
+  kaimai-yoti

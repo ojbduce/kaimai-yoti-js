@@ -1,37 +1,27 @@
-name: Build and Deploy to Azure Container App
+name: Build and Deploy Container
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
     steps:
       - uses: actions/checkout@v4
-
-      - name: Log in to Azure
-        uses: azure/login@v2
-        with:
-          client-id: "092fa0f6-e70f-4f4f-b1d3-dc4f7a9956cf"
-          tenant-id: "3e65d9f0-a97a-43d0-87ab-afcc620850c9"
-          subscription-id: "867a139a-7620-4ed2-ac65-b877887fee11"
-
-      - name: Build and deploy Container App
+      
+      - name: Build and push container
         uses: azure/container-apps-deploy-action@v2
         with:
           appSourcePath: ${{ github.workspace }}
-          containerAppName: 'kaimai-yoti-app'
+          containerAppName: 'ky'
           resourceGroup: 'Kaimai-Yoti-2'
-          runtimeStack: 'nodejs:20.18.0'
           targetPort: 8080
           ingress: 'external'
           environmentVariables: |
-            PORT=8080
             NODE_ENV=production
+            PORT=8080
             YOTI_CLIENT_SDK_ID=${{ secrets.YOTI_CLIENT_SDK_ID }}
             APP_URL=${{ secrets.APP_URL }}
             YOTI_KEY_FILE_PATH=/app/keys/Kaimai-Yoti-ultra-basic-share-keys.pem

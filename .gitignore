@@ -2,8 +2,8 @@
 node_modules/
 
 # Environment variables
-.env
-
+.env.development
+.env.production
 # Local SSL (not needed for Azure)
 local-dev/certificates/
 
@@ -12,3 +12,7 @@ local-dev/certificates/
 
 # Logs
 *.log
+
+# Ignore keys but keep directory structure
+keys/*
+!keys/.gitkeep

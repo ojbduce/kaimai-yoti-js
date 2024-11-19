@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const https = require('https');
 const path = require('path');
 const { 
     DigitalIdentityClient,
@@ -9,19 +10,61 @@ const {
         ShareSessionConfigurationBuilder,
     }
 } = require('yoti');
-require('dotenv').config();
+
+// Debug current directory
+console.log('Current directory:', __dirname);
+console.log('Process working directory:', process.cwd());
+
+// Load environment variables FIRST
+const envFile = process.env.NODE_ENV === 'development' ? '.env.development' : '.env.production';
+const envPath = path.join(__dirname, '..', envFile);
+console.log('Looking for env file at:', envPath);
+
+// Load env file
+const result = require('dotenv').config({ path: envPath });
+
+// Check if env file was loaded
+if (result.error) {
+    console.error('Error loading .env file:', result.error);
+    process.exit(1);
+}
+
+console.log('Loaded environment variables:', {
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+    YOTI_KEY_FILE_PATH: process.env.YOTI_KEY_FILE_PATH,
+    APP_URL: process.env.APP_URL,
+});
+
+// Add environment validation
+if (!process.env.NODE_ENV || !process.env.YOTI_KEY_FILE_PATH) {
+    console.error('Required environment variables are missing!');
+    console.log('Current environment:', {
+        NODE_ENV: process.env.NODE_ENV,
+        YOTI_KEY_PATH: process.env.YOTI_KEY_FILE_PATH,
+        APP_URL: process.env.APP_URL,
+        PWD: process.cwd(),
+    });
+    process.exit(1);
+}
+
+console.log(`Loading environment from ${envPath}`);
+
+// Then use environment variables
+const isLocal = process.env.NODE_ENV === 'development';
 
 console.log('Starting server with environment:', {
     PORT: process.env.PORT,
     NODE_ENV: process.env.NODE_ENV,
     YOTI_KEY_PATH: process.env.YOTI_KEY_FILE_PATH,
     APP_URL: process.env.APP_URL,
-    PWD: process.cwd()
+    PWD: process.cwd(),
+    isLocal: isLocal
 });
 console.log('YOTI_CLIENT_SDK_ID:', process.env.YOTI_CLIENT_SDK_ID?.substring(0, 8) + '...');
 
 const app = express();
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || (isLocal ? 3000 : 8080);
 
 app.use(cors());
 app.use(express.json());
@@ -52,9 +95,20 @@ app.get('/health', async (req, res) => {
     }
 });
 
-app.listen(port, '0.0.0.0', () => {
-    console.log(`Server starting on port ${port} at ${new Date().toISOString()}`);
-});
+const sslOptions = isLocal ? {
+    key: fs.readFileSync('./local-dev/certificates/private.key'),
+    cert: fs.readFileSync('./local-dev/certificates/certificate.pem')
+} : null;
+
+if (isLocal) {
+    https.createServer(sslOptions, app).listen(port, () => {
+        console.log(`Secure local server running on https://localhost:${port} at ${new Date().toISOString()}`);
+    });
+} else {
+    app.listen(port, '0.0.0.0', () => {
+        console.log(`Production server starting on port ${port} at ${new Date().toISOString()}`);
+    });
+}
 
 console.log(`Starting Yoti initialization at ${new Date().toISOString()}`);
 let yotiClient;
