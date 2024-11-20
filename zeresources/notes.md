@@ -37,3 +37,6 @@ NEW KEYS? CHANGE IN INDEX, .ENV, AZURE ENV
   -e YOTI_CLIENT_SDK_ID=754182a1-fbf6-4a20-8615-cf4666f964cc \
   -e APP_URL=http://localhost:8080 \
   kaimai-yoti
+
+
+  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
