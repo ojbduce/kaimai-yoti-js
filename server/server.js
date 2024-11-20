@@ -41,7 +41,7 @@ if (!process.env.NODE_ENV || !process.env.YOTI_KEY_FILE_PATH) {
     console.error('Required environment variables are missing!');
     console.log('Current environment:', {
         NODE_ENV: process.env.NODE_ENV,
-        YOTI_KEY_PATH: process.env.YOTI_KEY_FILE_PATH,
+        YOTI_KEY_FILE_PATH: process.env.YOTI_KEY_FILE_PATH,
         APP_URL: process.env.APP_URL,
         PWD: process.cwd(),
     });
@@ -56,7 +56,7 @@ const isLocal = process.env.NODE_ENV === 'development';
 console.log('Starting server with environment:', {
     PORT: process.env.PORT,
     NODE_ENV: process.env.NODE_ENV,
-    YOTI_KEY_PATH: process.env.YOTI_KEY_FILE_PATH,
+    YOTI_KEY_FILE_PATH: process.env.YOTI_KEY_FILE_PATH,
     APP_URL: process.env.APP_URL,
     PWD: process.cwd(),
     isLocal: isLocal
