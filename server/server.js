@@ -2,75 +2,35 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const https = require('https');
-const path = require('path');
+const { DefaultAzureCredential } = require("@azure/identity");
+const { SecretClient } = require("@azure/keyvault-secrets");
 const { 
     DigitalIdentityClient,
     DigitalIdentityBuilders: {
         PolicyBuilder,
-        ShareSessionConfigurationBuilder,
+        ShareSessionNotificationBuilder,
+        ShareSessionConfigurationBuilder
     }
 } = require('yoti');
-
-// Debug current directory
-console.log('Current directory:', __dirname);
-console.log('Process working directory:', process.cwd());
-
-// Load environment variables FIRST
-const envFile = process.env.NODE_ENV === 'development' ? '.env.development' : '.env.production';
-const envPath = path.join(__dirname, '..', envFile);
-console.log('Looking for env file at:', envPath);
-
-// Load env file
-const result = require('dotenv').config({ path: envPath });
-
-// Check if env file was loaded
-if (result.error) {
-    console.error('Error loading .env file:', result.error);
-    process.exit(1);
-}
-
-console.log('Loaded environment variables:', {
-    NODE_ENV: process.env.NODE_ENV,
-    PORT: process.env.PORT,
-    YOTI_KEY_FILE_PATH: process.env.YOTI_KEY_FILE_PATH,
-    APP_URL: process.env.APP_URL,
-});
-
-// Add environment validation
-if (!process.env.NODE_ENV || !process.env.YOTI_KEY_FILE_PATH) {
-    console.error('Required environment variables are missing!');
-    console.log('Current environment:', {
-        NODE_ENV: process.env.NODE_ENV,
-        YOTI_KEY_FILE_PATH: process.env.YOTI_KEY_FILE_PATH,
-        APP_URL: process.env.APP_URL,
-        PWD: process.cwd(),
-    });
-    process.exit(1);
-}
-
-console.log(`Loading environment from ${envPath}`);
-
-// Then use environment variables
-const isLocal = process.env.NODE_ENV === 'development';
-
-console.log('Starting server with environment:', {
-    PORT: process.env.PORT,
-    NODE_ENV: process.env.NODE_ENV,
-    YOTI_KEY_FILE_PATH: process.env.YOTI_KEY_FILE_PATH,
-    APP_URL: process.env.APP_URL,
-    PWD: process.cwd(),
-    isLocal: isLocal
-});
-console.log('YOTI_CLIENT_SDK_ID:', process.env.YOTI_CLIENT_SDK_ID?.substring(0, 8) + '...');
+require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || (isLocal ? 3000 : 8080);
+const port = process.env.PORT || 8080;
 
+// Add SSL configuration
+const httpsOptions = {
+    key: fs.readFileSync('local-dev/certificates/private.key'),
+    cert: fs.readFileSync('local-dev/certificates/certificate.pem')
+};
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static('client'));
 app.use((req, res, next) => {
+    // Allow embedding in iframes
     res.setHeader('X-Frame-Options', 'ALLOW-FROM https://reliable-equatorial-heron.anvil.app');
+    // Modern browsers use Content-Security-Policy
     res.setHeader(
         'Content-Security-Policy',
         "frame-ancestors 'self' https://reliable-equatorial-heron.anvil.app"
@@ -78,99 +38,78 @@ app.use((req, res, next) => {
     next();
 });
 
-app.get('/health', async (req, res) => {
-    try {
-        const health = {
-            status: 'up',
-            uptime: process.uptime(),
-            timestamp: Date.now(),
-            port: port,
-            env: process.env.NODE_ENV,
-            yotiStatus: yotiClient ? 'initialized' : 'initializing'
-        };
-        
-        res.status(200).json(health);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+async function getYotiKey() {
+    if (process.env.NODE_ENV === 'development') {
+        console.log('📝 Using local development key file');
+        return fs.readFileSync(process.env.YOTI_KEY_FILE_PATH);
+    } else {
+        console.log('🔐 Using Azure Key Vault reference');
+        // Add verification logging
+        const keyValue = process.env.YOTI_KEY_FILE_PATH;
+        console.log('Key starts with:', keyValue.substring(0, 20) + '...');
+        console.log('Key length:', keyValue.length);
+        // Verify it looks like a PEM file
+        if (!keyValue.includes('-----BEGIN PRIVATE KEY-----')) {
+            console.warn('⚠️ Warning: Key doesn\'t look like a PEM file');
+        } else {
+            console.log('✅ Key format looks correct');
+        }
+        return keyValue;
     }
-});
-
-const sslOptions = isLocal ? {
-    key: fs.readFileSync('./local-dev/certificates/private.key'),
-    cert: fs.readFileSync('./local-dev/certificates/certificate.pem')
-} : null;
-
-if (isLocal) {
-    https.createServer(sslOptions, app).listen(port, () => {
-        console.log(`Secure local server running on https://localhost:${port} at ${new Date().toISOString()}`);
-    });
-} else {
-    app.listen(port, '0.0.0.0', () => {
-        console.log(`Production server starting on port ${port} at ${new Date().toISOString()}`);
-    });
 }
 
-console.log(`Starting Yoti initialization at ${new Date().toISOString()}`);
+// Initialize Yoti client
 let yotiClient;
-try {
-    const startTime = Date.now();
-    const yotiKeyPath = process.env.YOTI_KEY_FILE_PATH;
-    console.log('Attempting to read Yoti key from:', yotiKeyPath);
-    
-    if (!fs.existsSync(yotiKeyPath)) {
-        console.error('Yoti key file not found at:', yotiKeyPath);
-        console.log('Directory contents:', fs.readdirSync(path.dirname(yotiKeyPath)));
-        throw new Error('Yoti key file not found');
+async function initializeYotiClient() {
+    try {
+        const privateKey = await getYotiKey();
+        yotiClient = new DigitalIdentityClient(
+            process.env.YOTI_CLIENT_SDK_ID,
+            privateKey
+        );
+        console.log(`✅ Yoti client initialized in ${process.env.NODE_ENV} mode`);
+    } catch (error) {
+        console.error('❌ Failed to initialize Yoti client:', error);
+        throw error;
     }
-    
-    yotiClient = new DigitalIdentityClient(
-        process.env.YOTI_CLIENT_SDK_ID,
-        fs.readFileSync(yotiKeyPath)
-    );
-    console.log('Yoti client initialized successfully');
-    const initTime = Date.now() - startTime;
-    console.log(`Yoti initialized successfully in ${initTime}ms`);
-} catch (error) {
-    console.error('Failed to initialize Yoti client:', error);
-    process.exit(1);
 }
 
+// Build the policy
 const policy = new PolicyBuilder()
     .withEmail()
     .withWantedRememberMe()
     .build();
 
+// Create an endpoint to initialize Yoti session
 app.post('/api/yoti/create-session', async (req, res) => {
-    console.log('Attempting to create Yoti session...');
     try {
-        const callbackUrl = `${process.env.APP_URL}/callback`;
-        console.log('Using callback URL:', callbackUrl);
-        
+        // Session configuration
         const shareSessionConfig = new ShareSessionConfigurationBuilder()
-            .withRedirectUri(callbackUrl)
+            .withRedirectUri(`${process.env.APP_URL}/callback`)  // We'll need to add this to .env
             .withPolicy(policy)
+            // Optional notification webhook
+            // .withNotification(notification)  // Uncomment if you want to add webhook
             .build();
 
+        // Create the session
         const shareSessionResult = await yotiClient.createShareSession(shareSessionConfig);
-        console.log('Session created successfully:', shareSessionResult.getId());
         
         res.json({
             sessionId: shareSessionResult.getId(),
             success: true
         });
     } catch (error) {
-        console.error('Session creation failed:', error);
+        console.error('Yoti session creation error:', error);
         res.status(500).json({
             error: 'Failed to create Yoti session',
-            details: error.message,
             success: false
         });
     }
 });
 
+
 app.get('/callback', async (req, res) => {
     console.log('\n=== YOTI CALLBACK ===');
-    console.log('Callback received with query params:', req.query);
     
     try {
         const { receiptId } = req.query;
@@ -188,27 +127,25 @@ app.get('/callback', async (req, res) => {
             `);
         }
 
-        const decodedReceiptId = decodeURIComponent(receiptId);
-        console.log('Decoded receipt ID:', decodedReceiptId);
-        
         console.log('🔍 Retrieving share receipt...');
-        const shareReceipt = await yotiClient.getShareReceipt(decodedReceiptId);
+        const shareReceipt = await yotiClient.getShareReceipt(decodeURIComponent(receiptId));
         
+        // Get receipt details
         const sessionId = shareReceipt.getSessionId();
         const rememberMeId = shareReceipt.getRememberMeId();
         const parentRememberMeId = shareReceipt.getParentRememberMeId();
 
-        console.log('📋 Receipt Details:', {
-            sessionId,
-            rememberMeId,
-            parentRememberMeId
-        });
+        console.log('📋 Receipt Details:');
+        console.log('Session ID:', sessionId);
+        console.log('Remember Me ID:', rememberMeId);
+        console.log('Parent Remember Me ID:', parentRememberMeId);
         
         console.log('📧 Getting profile...');
         const profile = shareReceipt.getProfile();
         const email = profile.getEmailAddress().getValue();
         console.log('Email retrieved:', email);
 
+        // Prepare data for Anvil
         const userData = {
             email: email,
             rememberMeId: rememberMeId,
@@ -217,6 +154,7 @@ app.get('/callback', async (req, res) => {
 
         console.log('🚀 Sending to Anvil:', userData);
         
+        // Send to Anvil
         const anvilResponse = await fetch('https://reliable-equatorial-heron.anvil.app/_/api/yka', {
             method: 'POST',
             headers: {
@@ -234,6 +172,7 @@ app.get('/callback', async (req, res) => {
 
         console.log('✅ Verification and data storage successful!\n');
         
+        // Send success HTML
         res.send(`
             <html>
                 <head><title>Verification Complete</title></head>
@@ -263,28 +202,18 @@ app.get('/callback', async (req, res) => {
     }
 });
 
-app.get('/debug-env', (req, res) => {
-    res.json({
-        YOTI_CLIENT_SDK_ID: process.env.YOTI_CLIENT_SDK_ID?.substring(0, 4) + '...',
-        YOTI_KEY_FILE_PATH: process.env.YOTI_KEY_FILE_PATH,
-        APP_URL: process.env.APP_URL,
-        NODE_ENV: process.env.NODE_ENV,
-        PWD: process.cwd()
+// Initialize before starting server
+if (process.env.NODE_ENV === 'development') {
+    // Use HTTPS in development
+    const server = https.createServer(httpsOptions, app);
+    server.listen(port, async () => {
+        await initializeYotiClient();
+        console.log(`Server running on https://localhost:${port}`);
     });
-});
-
-process.on('uncaughtException', (error) => {
-    console.error('Uncaught Exception:', error);
-});
-
-process.on('unhandledRejection', (error) => {
-    console.error('Unhandled Rejection:', error);
-});
-
-app.use((err, req, res, next) => {
-    console.error('Express error:', err);
-    res.status(500).json({
-        error: 'Internal Server Error',
-        message: process.env.NODE_ENV === 'development' ? err.message : undefined
+} else {
+    // Use regular HTTP in production (Azure handles SSL termination)
+    app.listen(port, async () => {
+        await initializeYotiClient();
+        console.log(`Server running on port ${port}`);
     });
-});
+}

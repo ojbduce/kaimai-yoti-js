@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: kaimaiyoti-dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: kaimaiyoti:dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./local-dev/certificates:/app/local-dev/certificates
+      - ./keys:/app/keys
+    env_file:
+      - .env.development

@@ -1,8 +1,11 @@
 node_modules
 npm-debug.log
+keys/
+local-dev/
 .env
 .git
 .gitignore
 README.md
+zeresources/
 Dockerfile
 .dockerignore
