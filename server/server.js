@@ -18,10 +18,10 @@ const app = express();
 const port = process.env.PORT || 8080;
 
 // Add SSL configuration
-const httpsOptions = {
+const httpsOptions = process.env.NODE_ENV === 'development' ? {
     key: fs.readFileSync('local-dev/certificates/private.key'),
     cert: fs.readFileSync('local-dev/certificates/certificate.pem')
-};
+} : null;
 
 // Middleware
 app.use(cors());
@@ -39,22 +39,20 @@ app.use((req, res, next) => {
 });
 
 async function getYotiKey() {
-    if (process.env.NODE_ENV === 'development') {
-        console.log('📝 Using local development key file');
-        return fs.readFileSync(process.env.YOTI_KEY_FILE_PATH);
-    } else {
-        console.log('🔐 Using Azure Key Vault reference');
-        // Add verification logging
-        const keyValue = process.env.YOTI_KEY_FILE_PATH;
-        console.log('Key starts with:', keyValue.substring(0, 20) + '...');
-        console.log('Key length:', keyValue.length);
-        // Verify it looks like a PEM file
-        if (!keyValue.includes('-----BEGIN PRIVATE KEY-----')) {
-            console.warn('⚠️ Warning: Key doesn\'t look like a PEM file');
-        } else {
-            console.log('✅ Key format looks correct');
+    try {
+        const keyPath = process.env.YOTI_KEY_FILE_PATH;
+        console.log(`📝 Reading key from: ${keyPath}`);
+        const key = fs.readFileSync(keyPath, 'utf8');
+        
+        if (!key) {
+            throw new Error('Failed to read key file');
         }
-        return keyValue;
+
+        console.log('Key loaded successfully');
+        return key;
+    } catch (error) {
+        console.error('❌ Error reading key file:', error);
+        throw error;
     }
 }
 

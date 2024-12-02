@@ -1,6 +1,5 @@
 node_modules
 npm-debug.log
-keys/
 local-dev/
 .env
 .git
@@ -9,3 +8,6 @@ README.md
 zeresources/
 Dockerfile
 .dockerignore
+
+# Explicitly allow PEM files
+!keys/*.pem

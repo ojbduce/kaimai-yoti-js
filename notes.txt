@@ -1,0 +1,13 @@
+PEM file to Azure Key Vault upload error.
+
+oliverjduce@Olivers-MacBook-Air Javascript %    az keyvault certificate import \
+     --vault-name "kaimaiyotikeys" \
+     --name "kaimaiyotidemokey" \
+     --file "/Users/oliverjduce/Dropbox/Kaimai/Keys/kaimai-yoti-ultra-basic-share-keys/Kaimai-Yoti-ultra-basic-share-keys.pem" \
+     --policy "$policy"
+Failed to parse string as JSON:
+
+Error detail: Expecting value: line 1 column 1 (char 0)
+The provided JSON string may have been parsed by the shell. See https://docs.microsoft.com/cli/azure/use-cli-effectively#use-quotation-marks-in-arguments
+
+working dev image kaimai-yoti-js  multiplatforms2   699a45c08ff8   29 hours ago   175MB
