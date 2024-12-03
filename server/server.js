@@ -162,17 +162,15 @@ app.get('/callback', async (req, res) => {
         });
 
         const responseData = await anvilResponse.json();
-        console.log('📥 Anvil Response:', responseData);
+        console.log('Anvil Response:', responseData);
 
         if (!anvilResponse.ok || responseData.status === 'error') {
             throw new Error(responseData.message || 'Failed to save to Anvil');
         }
 
-        console.log('✅ Verification and data storage successful!\n');
-        
         // Send success HTML
-        res.send(`
-            <html>
+       /*res.send(`
+           <html>
                 <head><title>Verification Complete</title></head>
                 <body>
                     <h1>Verification Successful!</h1>
@@ -182,8 +180,11 @@ app.get('/callback', async (req, res) => {
                     <p>Parent Remember Me ID: ${parentRememberMeId || 'None'}</p>
                     <p>Data saved to database ✅</p>
                 </body>
-            </html>
-        `);
+            </html> 
+        `);*/
+        
+      
+        res.redirect('http://myweb.com')
 
     } catch (error) {
         console.error('❌ Error:', error);
